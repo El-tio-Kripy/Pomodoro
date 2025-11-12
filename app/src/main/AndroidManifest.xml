@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.pomodorotimer">
+
+    <!-- PERMISOS AÑADIDOS -->
+    <!-- Permiso para mantener el dispositivo despierto (ya lo teníamos) -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Permiso OBLIGATORIO para iniciar servicios en primer plano en Android moderno -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- Permiso para mostrar notificaciones (necesario para el ForegroundService) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+         DECLARACIÓN DEL SERVICIO (¡MUY IMPORTANTE!)
+         Esto le dice al sistema que tu aplicación tiene un componente llamado ForegroundService.
+        -->
+        <service
+            android:name=".ForegroundService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+        <!--
+            - android:name=".ForegroundService" -> El nombre de tu clase de servicio.
+            - android:exported="false" -> Solo tu app puede iniciarlo (más seguro).
+            - android:foregroundServiceType -> OBLIGATORIO en Android 14.
+              "dataSync" es un tipo genérico que funciona bien para un temporizador.
+        -->
+
+    </application>
+
+</manifest>
