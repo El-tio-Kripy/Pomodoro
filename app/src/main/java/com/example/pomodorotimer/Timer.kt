@@ -1,8 +1,3 @@
-/*
- Comentarios traducidos automáticamente al español (traducción parcial;
- revisa manualmente para asegurar precisión técnica y contexto).
-*/
-
 package com.example.pomodorotimer
 
 
@@ -14,11 +9,9 @@ class Timer{
 
     var isCounting = false
     var isPause = false
-    // we don't need a third variable storing isStop because isStop will be true when temporizador is not counting and temporizador is not pausar
 
-    var workState = WorkState.Work //default to start with work timer
+    var workState = WorkState.Work
 
-    // these two are both in minutes
     var breakTimer: Int = 0
     var workTimer: Int = 0
 
@@ -92,7 +85,6 @@ class Timer{
     fun resetTimer(){
         isCounting = false
         isPause = false
-        //reset temporizador, set temporizador back to work stat
         workState = WorkState.Work
         secondToCount=0
         minToCount= workTimer
