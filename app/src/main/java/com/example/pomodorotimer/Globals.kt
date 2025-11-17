@@ -1,8 +1,3 @@
-/*
- Comentarios traducidos automáticamente al español (traducción parcial;
- revisa manualmente para asegurar precisión técnica y contexto).
-*/
-
 package com.example.pomodorotimer
 
 enum class WorkState(val value: Int){

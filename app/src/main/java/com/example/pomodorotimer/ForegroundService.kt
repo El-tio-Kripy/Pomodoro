@@ -1,78 +1,64 @@
-/*
- Comentarios traducidos automáticamente al español (traducción parcial;
- revisa manualmente para asegurar precisión técnica y contexto).
-*/
-
 package com.example.pomodorotimer
 
-import android.app.*
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.app.Service
 import android.content.Intent
 import android.os.Build
 import android.os.CountDownTimer
 import android.os.IBinder
 import android.util.Log
-import androidx.core.app.NotificationCompat.Builder
+import androidx.core.app.NotificationCompat
 
 
 class ForegroundService : Service() {
 
-    var timerStarted = false
-    var bi = Intent(ForegroundService.COUNTDOWN_BR)
-
-    private lateinit var timer: CountDownTimer
-
-
-    override fun onCreate() {
-        super.onCreate()
-    }
+    private var timerStarted = false
+    private var timer: CountDownTimer? = null
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
 
-        // Prevent creating multiple temporizador
         if (timerStarted){
             return START_NOT_STICKY
         }
 
-        try {
-
-            timer = object: CountDownTimer(Integer.MAX_VALUE.toLong(), 1000) {  // counting down 1s at a time
-                override fun onTick(millisUntilFinished: Long) {
-
-                    var msRemain:Long = millisUntilFinished
-
-                    //Log.i("timerapp", msRemain.toString())
-                    bi.putExtra("toCount", msRemain)
-                    sendBroadcast(bi)
+        timer = object: CountDownTimer(Long.MAX_VALUE, 1_000) {
+            override fun onTick(millisUntilFinished: Long) {
+                val remainingMillis = millisUntilFinished
+                val tickIntent = Intent(COUNTDOWN_BR).apply {
+                    putExtra("toCount", remainingMillis)
                 }
-
-                override fun onFinish() {
-
-                    Log.i("timerapp", "timer finish")
-                }
+                sendBroadcast(tickIntent)
             }
 
-            timer.start()
+            override fun onFinish() {
+                Log.i("timerapp", "temporizador en servicio finalizado")
+            }
+        }.also {
+            it.start()
             timerStarted = true
-
-        } catch (e: InterruptedException) {
-            Thread.currentThread().interrupt()
         }
-
 
         createNotificationChannel()
         val notificationIntent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
             this,
-            0, notificationIntent, 0
+            0,
+            notificationIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
+
         val notification: Notification =
-            Builder(this, CHANNEL_ID)
-                .setContentTitle("Timer On, Lets Go")
-                .setContentText("Hasta la vista, baby!")
+            NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle(getString(R.string.app_name))
+                .setContentText(getString(R.string.service_running))
                 .setSmallIcon(R.drawable.timericon)
                 .setContentIntent(pendingIntent)
+                .setOngoing(true)
                 .build()
-        startForeground(9000, notification)
+        startForeground(NOTIFICATION_ID, notification)
 
         return START_NOT_STICKY
     }
@@ -80,12 +66,13 @@ class ForegroundService : Service() {
     override fun onDestroy() {
         super.onDestroy()
 
-        if (timerStarted){
-            timer.cancel()
-        }
+        timer?.cancel()
+        timerStarted = false
 
-        bi.putExtra("forceStopped", true)
-        sendBroadcast(bi)
+        val stopIntent = Intent(COUNTDOWN_BR).apply {
+            putExtra("forceStopped", true)
+        }
+        sendBroadcast(stopIntent)
     }
 
     override fun onBind(intent: Intent): IBinder? {
@@ -96,8 +83,8 @@ class ForegroundService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val serviceChannel = NotificationChannel(
                 CHANNEL_ID,
-                "Foreground Service Channel",
-                NotificationManager.IMPORTANCE_DEFAULT
+                "Sesiones Pomodoro",
+                NotificationManager.IMPORTANCE_LOW
             )
             val manager = getSystemService(
                 NotificationManager::class.java
@@ -108,7 +95,8 @@ class ForegroundService : Service() {
 
     companion object {
         const val CHANNEL_ID = "ForegroundServiceChannel"
-        const val COUNTDOWN_BR = "ForegounrdService.countdown_br"
+        const val COUNTDOWN_BR = "ForegroundService.countdown_br"
+        private const val NOTIFICATION_ID = 9000
 
     }
 }

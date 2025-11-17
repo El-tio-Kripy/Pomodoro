@@ -1,8 +1,3 @@
-/*
- Comentarios traducidos automáticamente al español (traducción parcial;
- revisa manualmente para asegurar precisión técnica y contexto).
-*/
-
 package com.example.pomodorotimer
 
 import android.app.Notification
@@ -25,15 +20,18 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.example.pomodorotimer.databinding.ActivityMainBinding
+import java.util.concurrent.TimeUnit
 
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
-    private var timer = Timer()
+    private val timer = Timer()
     private val channelId = "pomodoroTimer"
-    lateinit var wakeLock: PowerManager.WakeLock
+    private lateinit var wakeLock: PowerManager.WakeLock
+    private lateinit var sharedPref: SharedPreferences
     private var completed = 0
+    private var receiverRegistered = false
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -51,19 +49,24 @@ class MainActivity : AppCompatActivity() {
 
 
     private fun sendNotification() {
-        with(NotificationManagerCompat.from(this)) {
-            cancel(completed - 1)
+        if (completed > 0) {
+            NotificationManagerCompat.from(this).cancel(completed - 1)
         }
 
         val notificationIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
-        val pendingIntent: PendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE)
+        val pendingIntent: PendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            notificationIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
 
         val notification: Notification =
             NotificationCompat.Builder(this, channelId)
-                .setContentTitle("Session $completed Completed")
-                .setContentText("Yippee ki yay")
+                .setContentTitle(getString(R.string.notification_title, completed))
+                .setContentText(getString(R.string.notification_body))
                 .setSmallIcon(R.drawable.timericon)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setContentIntent(pendingIntent)
@@ -103,11 +106,13 @@ class MainActivity : AppCompatActivity() {
         wakeLock = powerManager.newWakeLock(
             PowerManager.PARTIAL_WAKE_LOCK,
             "pomodoroTimer::wakeLock"
-        )
+        ).apply {
+            setReferenceCounted(false)
+        }
 
-        val sharedPref = getPreferences(Context.MODE_PRIVATE) ?: return
-        val savedWorkTimer = sharedPref.getInt("WORK", 0)
-        val savedBreakTimer = sharedPref.getInt("BREAK", 0)
+        sharedPref = getPreferences(Context.MODE_PRIVATE)
+        val savedWorkTimer = sharedPref.getInt(KEY_WORK, DEFAULT_WORK_MINUTES).coerceAtLeast(MINUTES_MIN)
+        val savedBreakTimer = sharedPref.getInt(KEY_BREAK, DEFAULT_BREAK_MINUTES).coerceAtLeast(MINUTES_MIN)
 
         binding.editTextPomodoro.setText(savedWorkTimer.toString())
         binding.editTextBreak.setText(savedBreakTimer.toString())
@@ -125,7 +130,7 @@ class MainActivity : AppCompatActivity() {
             Log.i("timerapp", "clicked timer start")
             if (timer.isCounting) {
                 Log.i("timerapp", "ignore duplicate starting request")
-                makeToast("Already started")
+                makeToast("El temporizador ya está en marcha")
                 return@setOnClickListener
             }
             startTimer()
@@ -134,18 +139,18 @@ class MainActivity : AppCompatActivity() {
         binding.fabPause.setOnClickListener {
             Log.i("timerapp", "clicked timer pause")
             if (timer.isCounting) {
-                makeToast("Pause timer")
+                makeToast("Temporizador en pausa")
                 destroyTimer()
                 timer.isCounting = false
                 timer.isPause = true
             } else {
-                makeToast("Already pause")
+                makeToast("Ya se encuentra en pausa")
             }
         }
 
         binding.fabStop.setOnClickListener {
             Log.i("timerapp", "clicked timer stop(cancel)")
-            makeToast("Cancel timer")
+            makeToast("Temporizador cancelado")
             if (timer.isCounting) {
                 destroyTimer()
             }
@@ -161,13 +166,16 @@ class MainActivity : AppCompatActivity() {
             val workTime = binding.editTextPomodoro.text.toString()
             val breakTime = binding.editTextBreak.text.toString()
 
-            val editor = sharedPref.edit()
-            editor.putInt("WORK", workTime.toInt())
-            editor.putInt("BREAK", breakTime.toInt())
-            editor.apply()
+            val workMinutes = parseMinutes(workTime, timer.workTimer.takeIf { it > 0 } ?: DEFAULT_WORK_MINUTES)
+            val breakMinutes = parseMinutes(breakTime, timer.breakTimer.takeIf { it > 0 } ?: DEFAULT_BREAK_MINUTES)
 
-            timer.workTimer = if (workTime == "") 2 else workTime.toInt()
-            timer.breakTimer = if (breakTime == "") 2 else breakTime.toInt()
+            sharedPref.edit()
+                .putInt(KEY_WORK, workMinutes)
+                .putInt(KEY_BREAK, breakMinutes)
+                .apply()
+
+            timer.workTimer = workMinutes
+            timer.breakTimer = breakMinutes
 
             Log.i(
                 "timerapp",
@@ -178,9 +186,9 @@ class MainActivity : AppCompatActivity() {
                 timer.loadWorkTimer()
                 binding.textViewCountdown.text = timer.displayTime()
                 binding.textViewCountdown.setTextColor(ContextCompat.getColor(this, R.color.colorWork))
-                makeToast("Current session: Work ${timer.workTimer} min, break ${timer.breakTimer} min")
+                makeToast("Sesión actual: trabajo ${timer.workTimer} min, descanso ${timer.breakTimer} min")
             } else {
-                makeToast("Next session: Work ${timer.workTimer} min, break ${timer.breakTimer} min")
+                makeToast("Próxima sesión: trabajo ${timer.workTimer} min, descanso ${timer.breakTimer} min")
             }
 
             binding.editTextPomodoro.setText(timer.workTimer.toString())
@@ -203,14 +211,19 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         Log.i("timerapp", "on resume")
-        // CAMBIO FINAL: Se añade el tercer parámetro "RECEIVER_NOT_EXPORTED".
-        // Esto soluciona el SecurityException en versiones modernas de Android.
-        registerReceiver(br, IntentFilter(ForegroundService.COUNTDOWN_BR), RECEIVER_NOT_EXPORTED)
+        val filter = IntentFilter(ForegroundService.COUNTDOWN_BR)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(br, filter, RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(br, filter)
+        }
+        receiverRegistered = true
     }
 
     override fun onDestroy() {
         Log.i("timerapp", "on destroy")
-        unregisterReceiver(br)
+        unregisterCountdownReceiver()
         destroyTimer()
         super.onDestroy()
     }
@@ -218,6 +231,7 @@ class MainActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         Log.i("timerapp", "on pause")
+        unregisterCountdownReceiver()
     }
 
 
@@ -225,6 +239,19 @@ class MainActivity : AppCompatActivity() {
     override fun onStop() {
         Log.i("timerapp", "on Stop")
         super.onStop()
+    }
+
+    private fun unregisterCountdownReceiver() {
+        if (receiverRegistered) {
+            unregisterReceiver(br)
+            receiverRegistered = false
+        }
+    }
+
+    private fun parseMinutes(rawValue: String, defaultValue: Int): Int {
+        val sanitized = rawValue.trim()
+        val parsed = sanitized.toIntOrNull()
+        return parsed?.coerceIn(MINUTES_MIN, MINUTES_MAX) ?: defaultValue
     }
 
     private fun destroyTimer(){
@@ -244,7 +271,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startTimer() {
-        wakeLock.acquire()
+        if (!wakeLock.isHeld) {
+            wakeLock.acquire(WAKELOCK_TIMEOUT_MS)
+        }
 
         when (timer.workState) {
             WorkState.Break -> {
@@ -256,10 +285,10 @@ class MainActivity : AppCompatActivity() {
                 if (!timer.isCounting && !timer.isPause){
                     timer.loadWorkTimer()
                     Log.i("timerapp", "start a new timer with  ${timer.displayTime()}")
-                    makeToast("start a new timer with  ${timer.displayTime()}")
+                    makeToast("Nuevo ciclo: ${timer.displayTime()}")
                 }else{
                     Log.i("timerapp", "resume timer from  ${timer.displayTime()}")
-                    makeToast("Resume with  ${timer.displayTime()}")
+                    makeToast("Reanudado con ${timer.displayTime()}")
                 }
             }
         }
@@ -328,5 +357,15 @@ class MainActivity : AppCompatActivity() {
         if (timer.isCounting) {
             startTimer()
         }
+    }
+
+    companion object {
+        private const val KEY_WORK = "WORK"
+        private const val KEY_BREAK = "BREAK"
+        private const val MINUTES_MIN = 1
+        private const val MINUTES_MAX = 180
+        private const val DEFAULT_WORK_MINUTES = 25
+        private const val DEFAULT_BREAK_MINUTES = 5
+        private val WAKELOCK_TIMEOUT_MS = TimeUnit.HOURS.toMillis(1)
     }
 }

@@ -1,40 +1,23 @@
-// Archivo de configuración de nivel superior donde se pueden agregar opciones
-// de configuración comunes a todos los submódulos/módulos.// NOTA: El bloque 'buildscript' está siendo reemplazado por una gestión
-// de plugins centralizada en 'settings.gradle' en proyectos muy nuevos,
-// pero mantenerlo así es perfectamente válido y funcional.
+// Archivo de configuración de nivel superior donde se definen versiones
+// y dependencias compartidas por todos los módulos.
 
 buildscript {
-    // ACTUALIZADO: Se define una versión de Kotlin moderna (1.9.22), que es
-    // compatible con los plugins y versiones de Gradle actuales.
-    // Esta es la corrección más importante para el error que viste.
+    // Kotlin actualizado a una versión estable y soportada por AGP 8.2.
     ext.kotlin_version = '1.9.22'
 
     repositories {
         google()
-        // REEMPLAZADO: jcenter() ya no existe, se cambia por mavenCentral().
         mavenCentral()
     }
 
     dependencies {
-        // ACTUALIZADO: Usamos la versión 8.4.1 del plugin de Android, que es estable
-        // y compatible con Gradle 8.6 (configurado en gradle-wrapper.properties).
-        classpath 'com.android.tools.build:gradle:8.13.1'
+        // AGP disponible públicamente y compatible con Gradle 8.2.1.
+        classpath 'com.android.tools.build:gradle:8.2.2'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
 
-// ELIMINADO: El bloque 'allprojects' ya no es necesario en las versiones modernas
-// de Gradle, ya que la configuración de repositorios se gestiona de forma centralizada.
-// Borrarlo ayuda a limpiar el archivo.
-/*
-allprojects {
-    repositories {
-        google()
-        mavenCentral() // También se reemplazaría aquí
-    }
-}
-*/
-
-task clean(type: Delete) {
-    delete rootProject.buildDir
+// Tarea utilitaria para limpiar los artefactos de compilación.
+tasks.register("clean", Delete) {
+    delete(rootProject.buildDir)
 }

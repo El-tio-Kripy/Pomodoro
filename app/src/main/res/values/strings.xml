@@ -1,8 +1,9 @@
 <resources>
     <string name="app_name">Pomodoro Timer</string>
-
-    <!-- TODO: Remove or change this placeholder text -->
-    <string name="hello_blank_fragment">Hello blank fragment</string>
-    <string name="channel_name">Pomodoro Timer channel </string>
-    <string name="channel_description">Send notification when timer finish</string>
+    <string name="hello_blank_fragment">Hola desde el fragmento</string>
+    <string name="channel_name">Canal Pomodoro</string>
+    <string name="channel_description">Notificaciones cuando finaliza una sesión</string>
+    <string name="service_running">El temporizador está activo en segundo plano</string>
+    <string name="notification_title">Sesión %1$d completada</string>
+    <string name="notification_body">Momento de revisar la siguiente etapa</string>
 </resources>
