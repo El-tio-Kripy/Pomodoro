@@ -1,52 +1,41 @@
 package com.example.pomodoro
 
-import android.content.Context
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.pomodoro.data.SettingsRepository
+import com.example.pomodoro.firebase.FirebaseRepository
 import com.example.pomodoro.timer.TimerEngine
 import com.example.pomodoro.timer.TimerState
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 
-class TimerViewModel(private val settingsRepository: SettingsRepository) : ViewModel() {
+class TimerViewModel(application: Application) : AndroidViewModel(application) {
 
-    private var currentSettings = settingsRepository.loadSettings()
-    private val timerEngine = TimerEngine(viewModelScope, currentSettings)
+    private val repository = FirebaseRepository(application.applicationContext)
+    private val timerEngine = TimerEngine(viewModelScope)
 
-    val state: StateFlow<TimerState> = timerEngine.state
+    val timerState: StateFlow<TimerState> = timerEngine.state
+    val formattedTime = timerEngine.formattedTime
 
-    fun toggleRunning() {
-        if (state.value.isRunning) {
-            timerEngine.pause()
-        } else {
-            timerEngine.start()
+    init {
+        viewModelScope.launch {
+            repository.ensureAuthenticated()
         }
-    }
 
-    fun stop() {
-        timerEngine.stop()
-    }
-
-    fun skipPhase() {
-        timerEngine.skip()
-    }
-
-    fun refreshSettings() {
-        val latest = settingsRepository.loadSettings()
-        currentSettings = latest
-        timerEngine.refreshSettings(latest)
-    }
-
-    companion object {
-        fun provideFactory(context: Context): ViewModelProvider.Factory {
-            return object : ViewModelProvider.Factory {
-                override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    val repository = SettingsRepository(context.applicationContext)
-                    @Suppress("UNCHECKED_CAST")
-                    return TimerViewModel(repository) as T
-                }
+        viewModelScope.launch {
+            timerEngine.phaseCompletions.collect { completion ->
+                repository.logPhaseCompletion(
+                    completion.phase,
+                    completion.durationSeconds,
+                    completion.pomodoroIndex
+                )
             }
         }
     }
+
+    fun start() = timerEngine.start()
+
+    fun stop() = timerEngine.stop()
+
+    fun reset() = timerEngine.reset()
 }
