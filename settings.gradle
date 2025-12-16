@@ -1,6 +1,3 @@
-// Este bloque gestiona los repositorios para los PLUGINS de Gradle.
-// Es importante tenerlo para que Gradle pueda descargar los plugins como
-// el de Android (AGP) y el de Kotlin.
 pluginManagement {
     repositories {
         google()
@@ -9,9 +6,6 @@ pluginManagement {
     }
 }
 
-// ESTE ES EL BLOQUE QUE FALTA.
-// Le dice a Gradle dónde buscar las DEPENDENCIAS de tu aplicación
-// (como appcompat, material, viewbinding, etc.).
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
@@ -20,7 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-// Estas líneas definen los módulos de tu proyecto.
-rootProject.name = "Pomodoro Timer"
-include ':app'
-
+rootProject.name = "Pomodoro"
+include(":app")
