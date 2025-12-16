@@ -1,6 +1,3 @@
 <resources>
     <string name="app_name">Pomodoro</string>
-    <string name="phase_work">TRABAJO</string>
-    <string name="phase_break_short">DESCANSO</string>
-    <string name="phase_break_long">DESCANSO LARGO</string>
 </resources>

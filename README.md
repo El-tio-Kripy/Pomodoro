@@ -1,44 +1,32 @@
-# Pomodoro (Jetpack Compose)
+# Pomodoro
 
-Una app Android de temporizador Pomodoro, simple y lista para evaluar. Incluye un flujo automático de trabajo/descanso, ajustes persistentes en `SharedPreferences` y una UI minimalista en Jetpack Compose.
+Aplicación Android sencilla de Pomodoro desarrollada con Jetpack Compose y arquitectura MVVM. El temporizador ejecuta ciclos automáticos de trabajo, descanso corto y descanso largo, guardando el historial de fases en Firebase Cloud Firestore usando autenticación anónima.
 
-## Pantallas
+## Requisitos
+- Android Studio Hedgehog o posterior.
+- JDK 17.
+- Dispositivo o emulador con Android 8.0 (API 26) o superior.
+- Gradle 8.9 instalado de forma local (solo si necesitas regenerar el wrapper).
 
-- **Timer**: muestra la fase actual (Trabajo, Descanso corto o Descanso largo), el tiempo restante en MM:SS, el indicador de ciclo (`Pomodoro x / N`) y botones de Iniciar/Pausa, Detener/Reset y Saltar.
-- **Ajustes**: edita las duraciones en minutos y cada cuántos pomodoros ocurre el descanso largo. Los valores se guardan inmediatamente y se aplican al volver al timer.
+## Configuración de Firebase
+1. Crea un proyecto en Firebase Console.
+2. Añade una app Android con el **package name** `com.example.pomodoro`.
+3. Descarga el archivo `google-services.json` desde la consola de Firebase y colócalo en `app/`.
+4. En Firebase Console, habilita **Authentication → Sign-in method → Anonymous**.
+5. En Firebase Console, habilita **Cloud Firestore** en modo de producción o prueba según tus necesidades.
 
-## Valores predeterminados
+> Si `google-services.json` no está presente, la compilación puede fallar al ejecutar el plugin de Google Services. Añade el archivo en `app/` y vuelve a compilar.
 
-- Trabajo: 25 minutos  
-- Descanso corto: 5 minutos  
-- Descanso largo: 15 minutos  
-- Descanso largo cada: 4 pomodoros
+## Compilación
+```bash
+# Si necesitas regenerar el wrapper (por ausencia de gradle-wrapper.jar):
+gradle wrapper --gradle-version 8.9 --distribution-type bin
 
-## Cómo abrir el proyecto
+./gradlew assembleDebug
+```
 
-1. Instala [Android Studio](https://developer.android.com/studio).
-2. Abre el directorio del repositorio en Android Studio (`Open > Existing Project`).
-3. Sincroniza Gradle cuando se solicite.
-
-## Cómo ejecutar
-
-- **Desde Android Studio**: selecciona un dispositivo/emulador y pulsa **Run**.
-- **Desde línea de comandos**:
-  ```bash
-  ./gradlew assembleDebug
-  ```
-  El APK quedará en `app/build/outputs/apk/debug/app-debug.apk`.
-
-## Flujo del temporizador
-
-1. Al abrir: se muestra `25:00` en la fase TRABAJO.
-2. **Iniciar**: comienza la cuenta regresiva. **Pausa** detiene el conteo.  
-3. **Saltar**: avanza inmediatamente a la siguiente fase.  
-4. Al llegar a `00:00`, pasa automáticamente a descanso corto o largo según el ciclo configurado y, al terminar, vuelve a TRABAJO. Esto se repite hasta que el usuario pulse **Detener**, que reinicia el ciclo en TRABAJO con el tiempo completo configurado.
-
-## Arquitectura breve
-
-- **TimerEngine**: controla el conteo basado en `SystemClock.elapsedRealtime()` para evitar drift y maneja transiciones automáticas entre fases.
-- **TimerState**: representa fase, segundos restantes, estado de ejecución y progreso del ciclo.
-- **SettingsRepository**: persiste y lee ajustes con `SharedPreferences`.
-- **MainActivity / SettingsActivity**: dos pantallas Compose en modo portrait.
+## Funcionalidad
+- Ciclo automático: Trabajo (25 min) → Descanso corto (5 min) → Trabajo … con descanso largo (15 min) cada 4 pomodoros.
+- Controles: **Iniciar**, **Detener**, **Reset**.
+- Vista única con Compose sin navegación ni layouts XML.
+- Historial en Firestore con campos: `timestamp`, `phase`, `durationSeconds`, `pomodoroIndex`, `deviceId`, `sessionId`.
